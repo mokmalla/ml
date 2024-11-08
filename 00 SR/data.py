@@ -159,7 +159,6 @@ class xView:
         else:
             raise ValueError(f'scale must be in ${_scales}')
 
-        self.subset = subset
         # fix: 파일 인덱싱 필요
         if subset == 'train':
             self.image_ids = range(1, 801)
@@ -168,8 +167,13 @@ class xView:
         else:
             raise ValueError("subset must be 'train' or 'valid'")
         
+        self.subset = subset
+        self.downgrade = downgrade
         self.images_dir = images_dir
+        self.caches_dir = caches_dir
+        
         os.makedirs(images_dir, exist_ok=True)
+        os.makedirs(caches_dir, exist_ok=True)
 
     def __len__(self):
         return len(self.image_ids)
