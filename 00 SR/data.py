@@ -164,7 +164,7 @@ class xView:
         if subset == 'train':
             self.image_ids = range(1, 801)
         elif subset == 'valid':
-            self.image_ids = range(801, 901)
+            self.image_ids = range(801, 865)
         else:
             raise ValueError("subset must be 'train' or 'valid'")
         
@@ -209,10 +209,15 @@ class xView:
         return [os.path.join(images_dir, f'{image_id:04}.png') for image_id in self.image_ids] # fix: 파일 이름 수정 필요
 
     def _hr_image_generate(self):
+        os.makedirs(self._hr_images_dir(), exist_ok=True)
         folderpath = os.path.join(self.images_dir, 'ori') # tif (원본이미지) 저장 폴더 경로
         files = os.listdir(folderpath)
         files.sort()
-        for idx, filename in enumerate(files, start=1):
+        if (self.subset == 'train'):
+            files = files[:801]
+        else:
+            files = files[801:]
+        for idx, filename in zip(self.image_ids, files):
             filepath = os.path.join(folderpath, filename)
             hr_filepath = os.path.join(self._hr_images_dir(), f'{idx:04}.png')
             ori_image = Image.open(filepath)
@@ -220,7 +225,7 @@ class xView:
 
     def lr_dataset(self):
         if not os.path.exists(self._lr_images_dir()):
-            if not os.path.exists(self._hr_image_generate()):
+            if not os.path.exists(self._hr_images_dir()):
                 self._hr_image_generate()
             self._lr_image_generate()
 
@@ -239,10 +244,11 @@ class xView:
         return [os.path.join(images_dir, f'{image_id:04}.png') for image_id in self.image_ids] # fix: 파일 이름 수정 필요
 
     def _lr_image_generate(self):
+        os.makedirs(self._lr_images_dir(), exist_ok=True)
         def image_downscaling(filepath, lr_filepath):
             hr_image = Image.open(filepath)
             hr_size = hr_image.size
-            lr_size = (hr_size[0] // 2, hr_size[1] // 2)
+            lr_size = (hr_size[0] // self.scale, hr_size[1] // self.scale)
             lr_image = hr_image.resize(lr_size, Image.BICUBIC)
             lr_image.save(lr_filepath)
 
