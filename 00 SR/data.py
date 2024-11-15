@@ -1,5 +1,6 @@
 import os
 import tensorflow as tf
+from PIL import Image
 
 from tensorflow.python.data.experimental import AUTOTUNE
 
@@ -191,9 +192,7 @@ class xView:
     
     def hr_dataset(self):
         if not os.path.exists(self._hr_images_dir()):
-            # fix: image 다운로드 필요
-            # download_archive(self._hr_images_archive(), self.images_dir, extract=True)
-            pass
+            self._hr_image_generate() # tif 이미지를 0001 ~ 0???.png
 
         ds = self._images_dataset(self._hr_image_files()).cache(self._hr_cache_file())
 
@@ -209,9 +208,20 @@ class xView:
         images_dir = self._hr_images_dir()
         return [os.path.join(images_dir, f'{image_id:04}.png') for image_id in self.image_ids] # fix: 파일 이름 수정 필요
 
+    def _hr_image_generate(self):
+        folderpath = os.path.join(self.images_dir, 'ori') # tif (원본이미지) 저장 폴더 경로
+        files = os.listdir(folderpath)
+        files.sort()
+        for idx, filename in enumerate(files, start=1):
+            filepath = os.path.join(folderpath, filename)
+            hr_filepath = os.path.join(self._hr_images_dir(), f'{idx:04}.png')
+            ori_image = Image.open(filepath)
+            ori_image.save(hr_filepath)
+
     def lr_dataset(self):
         if not os.path.exists(self._lr_images_dir()):
-            # fix: image HR에서 다운스케일링 직접
+            if not os.path.exists(self._hr_image_generate()):
+                self._hr_image_generate()
             self._lr_image_generate()
 
         ds = self._images_dataset(self._lr_image_files()).cache(self._lr_cache_file())
@@ -229,25 +239,15 @@ class xView:
         return [os.path.join(images_dir, f'{image_id:04}.png') for image_id in self.image_ids] # fix: 파일 이름 수정 필요
 
     def _lr_image_generate(self):
-        hr = self.hr_dataset()
+        def image_downscaling(filepath, lr_filepath):
+            hr_image = Image.open(filepath)
+            hr_size = hr_image.size
+            lr_size = (hr_size[0] // 2, hr_size[1] // 2)
+            lr_image = hr_image.resize(lr_size, Image.BICUBIC)
+            lr_image.save(lr_filepath)
 
-        def resize_image(image):
-            original_shape = tf.shape(image)[:2]
-            new_shape = tf.cast(tf.cast(original_shape, tf.float32) / self.scale, tf.int32)
-            resized_image = tf.image.resize(image, new_shape, method=tf.image.ResizeMethod.BICUBIC) # BICUBIC?
-            return resized_image
-
-        lr = hr.map(resize_image, num_parallel_calls=AUTOTUNE)
-
-        # file_names 생성
-        lr_file_names = self._lr_image_files()
-
-        # lr 저장
-        for image, file_name in zip(lr, lr_file_names):
-            # 이미지 인코딩 (PNG 형식)
-            encoded_image = tf.io.encode_png(tf.cast(image, tf.uint8))
-            # 이미지 저장
-            tf.io.write_file(file_name, encoded_image)
+        for hr_filename, lr_filename in zip(self._hr_image_files(), self._lr_image_files()):
+            image_downscaling(hr_filename, lr_filename)
 
     def _hr_cache_index(self):
         return f'{self._hr_cache_file()}.index'
