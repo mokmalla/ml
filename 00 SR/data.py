@@ -202,13 +202,20 @@ class xView:
         return ds
     
     def _hr_images_dir(self):
-        return os.path.join(self.images_dir, f'xView_{self.subset}_HR')
+        return os.path.join(self.images_dir, f'xView_{self.subset}_HR_X{self.scale}')
     
     def _hr_image_files(self):
         images_dir = self._hr_images_dir()
         return [os.path.join(images_dir, f'{image_id:04}.png') for image_id in self.image_ids] # fix: 파일 이름 수정 필요
-
-    def _hr_image_generate(self):
+    
+    def _hr_ori_images_dir(self):
+        return os.path.join(self.images_dir, f'xView_{self.subset}_HR')
+    
+    def _hr_ori_image_files(self):
+        images_dir = self._hr_ori_images_dir()
+        return [os.path.join(images_dir, f'{image_id:04}.png') for image_id in self.image_ids] # fix: 파일 이름 수정 필요
+    
+    def _hr_ori_image_generate(self): # fix: ori -> hr_ori
         os.makedirs(self._hr_images_dir(), exist_ok=True)
         folderpath = os.path.join(self.images_dir, 'ori') # tif (원본이미지) 저장 폴더 경로
         files = os.listdir(folderpath)
@@ -222,6 +229,28 @@ class xView:
             hr_filepath = os.path.join(self._hr_images_dir(), f'{idx:04}.png')
             ori_image = Image.open(filepath)
             ori_image.save(hr_filepath)
+
+    def _hr_image_generate(self): # hr_ori -> hr_X4
+        os.makedirs(self._hr_images_dir(), exist_ok=True)
+
+        for ori_filepath, hr_filepath in zip(self._hr_ori_image_files(), self._hr_image_files()):
+
+            image = Image.open(ori_filepath)
+            width, height = image.size
+
+            # 새로운 크기 계산 (multiple의 배수로 내림)
+            new_width = (width // self.scale) * self.scale
+            new_height = (height // self.scale) * self.scale
+
+            # 중앙 기준 잘라낼 영역 계산
+            left = (width - new_width) // 2
+            top = (height - new_height) // 2
+            right = left + new_width
+            bottom = top + new_height
+
+            # 이미지 크롭
+            cropped_image = image.crop((left, top, right, bottom))
+            cropped_image.save(hr_filepath)
 
     def lr_dataset(self):
         if not os.path.exists(self._lr_images_dir()):
