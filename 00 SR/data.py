@@ -162,9 +162,9 @@ class xView:
 
         # fix: 파일 인덱싱 필요
         if subset == 'train':
-            self.image_ids = range(1, 801)
+            self.image_ids = range(1, 751)
         elif subset == 'valid':
-            self.image_ids = range(801, 865)
+            self.image_ids = range(751, 847)
         else:
             raise ValueError("subset must be 'train' or 'valid'")
         
@@ -214,9 +214,9 @@ class xView:
         files = os.listdir(folderpath)
         files.sort()
         if (self.subset == 'train'):
-            files = files[:801]
+            files = files[:750]
         else:
-            files = files[801:]
+            files = files[750:]
         for idx, filename in zip(self.image_ids, files):
             filepath = os.path.join(folderpath, filename)
             hr_filepath = os.path.join(self._hr_images_dir(), f'{idx:04}.png')
@@ -262,10 +262,10 @@ class xView:
         return f'{self._lr_cache_file()}.index'
 
     def _hr_cache_file(self):
-        return os.path.join(self.caches_dir, f'DIV2K_{self.subset}_HR.cache')
+        return os.path.join(self.caches_dir, f'xView_{self.subset}_HR.cache')
 
     def _lr_cache_file(self):
-        return os.path.join(self.caches_dir, f'DIV2K_{self.subset}_LR_{self.downgrade}_X{self.scale}.cache')
+        return os.path.join(self.caches_dir, f'xView_{self.subset}_LR_{self.downgrade}_X{self.scale}.cache')
 
     @staticmethod
     def _images_dataset(image_files):
