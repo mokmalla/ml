@@ -215,8 +215,8 @@ class xView:
         images_dir = self._hr_ori_images_dir()
         return [os.path.join(images_dir, f'{image_id:04}.png') for image_id in self.image_ids] # fix: 파일 이름 수정 필요
     
-    def _hr_ori_image_generate(self): # fix: ori -> hr_ori
-        os.makedirs(self._hr_images_dir(), exist_ok=True)
+    def _hr_ori_image_generate(self): # fix: ori -> hr
+        os.makedirs(self._hr_ori_images_dir(), exist_ok=True)
         folderpath = os.path.join(self.images_dir, 'ori') # tif (원본이미지) 저장 폴더 경로
         files = os.listdir(folderpath)
         files.sort()
@@ -226,11 +226,13 @@ class xView:
             files = files[750:]
         for idx, filename in zip(self.image_ids, files):
             filepath = os.path.join(folderpath, filename)
-            hr_filepath = os.path.join(self._hr_images_dir(), f'{idx:04}.png')
+            hr_filepath = os.path.join(self._hr_ori_images_dir(), f'{idx:04}.png')
             ori_image = Image.open(filepath)
             ori_image.save(hr_filepath)
 
-    def _hr_image_generate(self): # hr_ori -> hr_X4
+    def _hr_image_generate(self): # hr -> hr_X4
+        if not os.path.exists(self._hr_ori_images_dir()):
+            self._hr_ori_image_generate()
         os.makedirs(self._hr_images_dir(), exist_ok=True)
 
         for ori_filepath, hr_filepath in zip(self._hr_ori_image_files(), self._hr_image_files()):
