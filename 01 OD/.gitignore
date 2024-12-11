@@ -1,1 +1,4 @@
 .xView
+datasets
+runs
+yolo11n.pt
