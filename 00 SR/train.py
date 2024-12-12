@@ -1,6 +1,7 @@
 import time
 import tensorflow as tf
 import functools
+import os
 
 from model import evaluate
 from model import srgan
@@ -20,9 +21,10 @@ class Trainer:
                  loss,
                  learning_rate,
                  checkpoint_dir='./ckpt/edsr'):
-
         self.now = None
         self.loss = loss
+        self.checkpoint_dir = checkpoint_dir
+
         self.checkpoint = tf.train.Checkpoint(step=tf.Variable(0),
                                               psnr=tf.Variable(-1.0),
                                               optimizer=Adam(learning_rate),
@@ -30,7 +32,6 @@ class Trainer:
         self.checkpoint_manager = tf.train.CheckpointManager(checkpoint=self.checkpoint,
                                                              directory=checkpoint_dir,
                                                              max_to_keep=3)
-
         self.restore()
 
     @property
@@ -66,10 +67,12 @@ class Trainer:
                     self.now = time.perf_counter()
                     # skip saving checkpoint, no PSNR improvement
                     continue
-
+                
                 ckpt.psnr = psnr_value
-                ckpt_mgr.save()
-
+                # ckpt -> weights
+                # ckpt_mgr.save()
+                self.save_weights(weights_dir=self.checkpoint_dir, step=step)
+                
                 self.now = time.perf_counter()
 
     @tf.function
@@ -90,12 +93,34 @@ class Trainer:
         return evaluate(self.checkpoint.model, dataset)
 
     def restore(self):
-        if self.checkpoint_manager.latest_checkpoint:
-            self.checkpoint.restore(self.checkpoint_manager.latest_checkpoint)
-            print(f'Model restored from checkpoint at step {self.checkpoint.step.numpy()}.')
+        try:
+            step_filepath = self.checkpoint_dir+'/step.txt'
+            with open(step_filepath, 'r') as file:
+                lines = file.readlines()
+                if not lines:
+                    raise 
+                step = int(lines[-1].strip())
 
-    def save_weights(self, weights_dir='./weights/edsr'):
+            self.load_weights(self.checkpoint_dir, step=step)
+            print(f'Model restored from checkpoint at step {step}.')
+        except Exception as e:
+            print(e)
+            print('No Checkpoint')
+        # if self.checkpoint_manager.latest_checkpoint:
+        #     self.checkpoint.restore(self.checkpoint_manager.latest_checkpoint)
+        #     print(f'Model restored from checkpoint at step {self.checkpoint.step.numpy()}.')
+
+
+    def save_weights(self, weights_dir='./weights/edsr', step=None):
         self.checkpoint.model.save_weights(weights_dir + '/weights.h5')
+        if step:
+            step_filepath = weights_dir+'/step.txt'
+            if not os.path.exists(step_filepath):
+                with open(step_filepath, 'w') as file:
+                    pass
+            with open(step_filepath, 'a') as file:
+                file.write(f'{step}' + '\n')
+
         return
     
     def load_weights(self, weights_dir='./weights/edsr', step=None):
@@ -283,6 +308,7 @@ class CycleganTrainer:
         self.discriminator_optimizer = Adam(learning_rate=learning_rate)
         self.MSE = tf.losses.MeanSquaredError()
         self.MAE = tf.losses.MeanAbsoluteError()
+        self.checkpoint_dir = checkpoint_dir
 
         self.ckpt_G_L2H = tf.train.Checkpoint(step=tf.Variable(0),
                                               psnr=tf.Variable(-1.0),
@@ -318,7 +344,7 @@ class CycleganTrainer:
     def model(self):
         return self.ckpt_G_L2H.model
 
-    def train(self, train_dataset, valid_dataset, steps=200000, evaluate_every=1000):
+    def train(self, train_dataset, valid_dataset, steps=200000, evaluate_every=1000, save_best_only=False):
         pls_metric = Mean()
         dls_metric = Mean()
         
@@ -351,10 +377,18 @@ class CycleganTrainer:
                 pls_metric.reset_states()
                 dls_metric.reset_states()
 
-                ckpt_mgr1.save()
-                ckpt_mgr2.save()
-                ckpt_mgr3.save()
-                ckpt_mgr4.save()
+                if save_best_only and psnr_value <= self.psnr:
+                    self.now = time.perf_counter()
+                    # skip saving checkpoint, no PSNR improvement
+                    continue
+
+                self.psnr = psnr_value
+
+                # ckpt_mgr1.save()
+                # ckpt_mgr2.save()
+                # ckpt_mgr3.save()
+                # ckpt_mgr4.save()
+                self.save_weights_all(weights_dir=self.checkpoint_dir, step=step)
 
                 self.now = time.perf_counter()
                 
@@ -433,24 +467,46 @@ class CycleganTrainer:
         return evaluate(self.ckpt_G_L2H.model, dataset)
 
     def restore(self): 
-        if self.ckpt_mgr_G_L2H.latest_checkpoint:
-            self.ckpt_G_L2H.restore(self.ckpt_mgr_G_L2H.latest_checkpoint)
-            print(f'Model(G_L2H) restored from checkpoint at step {self.ckpt_G_L2H.step.numpy()}.')        
-        if self.ckpt_mgr_G_H2L.latest_checkpoint:
-            self.ckpt_G_H2L.restore(self.ckpt_mgr_G_H2L.latest_checkpoint)
-            print(f'Model(G_H2L) restored from checkpoint at step {self.ckpt_G_H2L.step.numpy()}.')
-        if self.ckpt_mgr_D_H.latest_checkpoint:
-            self.ckpt_D_H.restore(self.ckpt_mgr_D_H.latest_checkpoint)
-            print(f'Model(D_H) restored from checkpoint at step {self.ckpt_D_H.step.numpy()}.')
-        if self.ckpt_mgr_D_L.latest_checkpoint:
-            self.ckpt_D_L.restore(self.ckpt_mgr_D_L.latest_checkpoint)
-            print(f'Model(D_L) restored from checkpoint at step {self.ckpt_D_L.step.numpy()}.')
+        try:
+            step_filepath = self.checkpoint_dir+'/step.txt'
+            with open(step_filepath, 'r') as file:
+                lines = file.readlines()
+                if not lines:
+                    raise 
+                step = int(lines[-1].strip())
+
+            self.load_weights_all(self.checkpoint_dir, step=step)
+            print(f'Model restored from checkpoint at step {step}.')
+        except Exception as e:
+            print(e)
+            print('No Checkpoint')
+
+        # if self.ckpt_mgr_G_L2H.latest_checkpoint:
+        #     self.ckpt_G_L2H.restore(self.ckpt_mgr_G_L2H.latest_checkpoint)
+        #     print(f'Model(G_L2H) restored from checkpoint at step {self.ckpt_G_L2H.step.numpy()}.')        
+        # if self.ckpt_mgr_G_H2L.latest_checkpoint:
+        #     self.ckpt_G_H2L.restore(self.ckpt_mgr_G_H2L.latest_checkpoint)
+        #     print(f'Model(G_H2L) restored from checkpoint at step {self.ckpt_G_H2L.step.numpy()}.')
+        # if self.ckpt_mgr_D_H.latest_checkpoint:
+        #     self.ckpt_D_H.restore(self.ckpt_mgr_D_H.latest_checkpoint)
+        #     print(f'Model(D_H) restored from checkpoint at step {self.ckpt_D_H.step.numpy()}.')
+        # if self.ckpt_mgr_D_L.latest_checkpoint:
+        #     self.ckpt_D_L.restore(self.ckpt_mgr_D_L.latest_checkpoint)
+        #     print(f'Model(D_L) restored from checkpoint at step {self.ckpt_D_L.step.numpy()}.')
     
-    def save_weights_all(self, weights_dir='./weights/cyclegan'):
+    def save_weights_all(self, weights_dir='./weights/cyclegan', step=None):
         self.ckpt_G_L2H.model.save_weights(weights_dir + '/weights_1.h5')
         self.ckpt_G_H2L.model.save_weights(weights_dir + '/weights_2.h5')
         self.ckpt_D_H.model.save_weights(weights_dir + '/weights_3.h5')
         self.ckpt_D_L.model.save_weights(weights_dir + '/weights_4.h5')
+        if step:
+            step_filepath = weights_dir+'/step.txt'
+            if not os.path.exists(step_filepath):
+                with open(step_filepath, 'w') as file:
+                    pass
+            with open(step_filepath, 'a') as file:
+                file.write(f'{step}' + '\n')
+
         return
     
     def load_weights_all(self, weights_dir='./weights/cyclegan', step=None):
