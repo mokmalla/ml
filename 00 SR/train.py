@@ -112,14 +112,20 @@ class Trainer:
 
 
     def save_weights(self, weights_dir='./weights/edsr', step=None):
-        self.checkpoint.model.save_weights(weights_dir + '/weights.h5')
-        if step:
-            step_filepath = weights_dir+'/step.txt'
-            if not os.path.exists(step_filepath):
-                with open(step_filepath, 'w') as file:
-                    pass
-            with open(step_filepath, 'a') as file:
-                file.write(f'{step}' + '\n')
+        try:
+            self.checkpoint.model.save_weights(weights_dir + '/weights.h5')
+            if step:
+                step_filepath = weights_dir+'/step.txt'
+                if not os.path.exists(step_filepath):
+                    with open(step_filepath, 'w') as file:
+                        pass
+                with open(step_filepath, 'a') as file:
+                    file.write(f'{step}' + '\n')
+        
+            print(f'save weights in {weights_dir} (step: {step})')
+        except Exception as e:
+            print(e)
+            print('save failed')
 
         return
     
@@ -495,17 +501,22 @@ class CycleganTrainer:
         #     print(f'Model(D_L) restored from checkpoint at step {self.ckpt_D_L.step.numpy()}.')
     
     def save_weights_all(self, weights_dir='./weights/cyclegan', step=None):
-        self.ckpt_G_L2H.model.save_weights(weights_dir + '/weights_1.h5')
-        self.ckpt_G_H2L.model.save_weights(weights_dir + '/weights_2.h5')
-        self.ckpt_D_H.model.save_weights(weights_dir + '/weights_3.h5')
-        self.ckpt_D_L.model.save_weights(weights_dir + '/weights_4.h5')
-        if step:
-            step_filepath = weights_dir+'/step.txt'
-            if not os.path.exists(step_filepath):
-                with open(step_filepath, 'w') as file:
-                    pass
-            with open(step_filepath, 'a') as file:
-                file.write(f'{step}' + '\n')
+        try:
+            self.ckpt_G_L2H.model.save_weights(weights_dir + '/weights_1.h5')
+            self.ckpt_G_H2L.model.save_weights(weights_dir + '/weights_2.h5')
+            self.ckpt_D_H.model.save_weights(weights_dir + '/weights_3.h5')
+            self.ckpt_D_L.model.save_weights(weights_dir + '/weights_4.h5')
+            if step:
+                step_filepath = weights_dir+'/step.txt'
+                if not os.path.exists(step_filepath):
+                    with open(step_filepath, 'w') as file:
+                        pass
+                with open(step_filepath, 'a') as file:
+                    file.write(f'{step}' + '\n')
+            print(f'save weights in {weights_dir} (step: {step})')
+        except Exception as e:
+            print(e)
+            print('save failed')
 
         return
     
