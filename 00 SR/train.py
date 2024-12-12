@@ -94,6 +94,20 @@ class Trainer:
             self.checkpoint.restore(self.checkpoint_manager.latest_checkpoint)
             print(f'Model restored from checkpoint at step {self.checkpoint.step.numpy()}.')
 
+    def save_weights(self, weights_dir='./weights/edsr'):
+        self.checkpoint.model.save_weights(weights_dir + '/weights.h5')
+        return
+    
+    def load_weights(self, weights_dir='./weights/edsr', step=None):
+        self.checkpoint.model.load_weights(weights_dir + '/weights.h5')
+        if step:
+            self.set_step(step)
+        return
+    
+    def set_step(self, step=0):
+        self.checkpoint.step.assign(tf.Variable(step))
+        print(f"setting step {step}")
+    
 
 class EdsrTrainer(Trainer):
     def __init__(self,
@@ -431,3 +445,26 @@ class CycleganTrainer:
         if self.ckpt_mgr_D_L.latest_checkpoint:
             self.ckpt_D_L.restore(self.ckpt_mgr_D_L.latest_checkpoint)
             print(f'Model(D_L) restored from checkpoint at step {self.ckpt_D_L.step.numpy()}.')
+    
+    def save_weights_all(self, weights_dir='./weights/cyclegan'):
+        self.ckpt_G_L2H.model.save_weights(weights_dir + '/weights_1.h5')
+        self.ckpt_G_H2L.model.save_weights(weights_dir + '/weights_2.h5')
+        self.ckpt_D_H.model.save_weights(weights_dir + '/weights_3.h5')
+        self.ckpt_D_L.model.save_weights(weights_dir + '/weights_4.h5')
+        return
+    
+    def load_weights_all(self, weights_dir='./weights/cyclegan', step=None):
+        self.ckpt_G_L2H.model.load_weights(weights_dir + '/weights_1.h5')
+        self.ckpt_G_H2L.model.load_weights(weights_dir + '/weights_2.h5')
+        self.ckpt_D_H.model.load_weights(weights_dir + '/weights_3.h5')
+        self.ckpt_D_L.model.load_weights(weights_dir + '/weights_4.h5')
+        if step:
+            self.set_step(step)
+        return
+    
+    def set_step(self, step=0):
+        self.ckpt_G_L2H.step.assign(tf.Variable(step))
+        self.ckpt_G_H2L.step.assign(tf.Variable(step))
+        self.ckpt_D_H.step.assign(tf.Variable(step))
+        self.ckpt_D_L.step.assign(tf.Variable(step))
+        print(f"setting step {step}")
